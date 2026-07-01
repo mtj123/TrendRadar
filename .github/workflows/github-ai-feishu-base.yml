@@ -1,0 +1,78 @@
+name: GitHub AI Feishu Base
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: github-ai-feishu-base-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Verify preset config
+        run: |
+          if [ ! -f config/config.github-ai.yaml ]; then
+            echo "Error: config/config.github-ai.yaml missing"
+            exit 1
+          fi
+
+      - name: Preview GitHub AI Feishu Base payload
+        env:
+          CONFIG_PATH: config/config.github-ai.yaml
+          GITHUB_TOKEN_FOR_SEARCH: ${{ secrets.SEARCH_GITHUB_TOKEN }}
+        run: uv run python -m trendradar --preview-feishu-base
+
+      - name: Export GitHub AI Feishu Base payload
+        env:
+          CONFIG_PATH: config/config.github-ai.yaml
+          GITHUB_TOKEN_FOR_SEARCH: ${{ secrets.SEARCH_GITHUB_TOKEN }}
+        run: uv run python -m trendradar --export-feishu-base-preview
+
+      - name: Upload GitHub AI Feishu Base preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-ai-feishu-base-preview
+          path: |
+            output/feishu_base_preview/**/payload.json
+            output/feishu_base_preview/**/payload.csv
+          if-no-files-found: error
+
+      - name: Sync GitHub AI Feishu Base
+        env:
+          CONFIG_PATH: config/config.github-ai.yaml
+          FEISHU_BASE_ENABLED: ${{ secrets.FEISHU_BASE_ENABLED }}
+          FEISHU_BASE_APP_ID: ${{ secrets.FEISHU_BASE_APP_ID }}
+          FEISHU_BASE_APP_SECRET: ${{ secrets.FEISHU_BASE_APP_SECRET }}
+          FEISHU_BASE_APP_TOKEN: ${{ secrets.FEISHU_BASE_APP_TOKEN }}
+          FEISHU_BASE_MAIN_TABLE_ID: ${{ secrets.FEISHU_BASE_MAIN_TABLE_ID }}
+          FEISHU_BASE_MAIN_TABLE_NAME: ${{ secrets.FEISHU_BASE_MAIN_TABLE_NAME }}
+          FEISHU_BASE_AUTO_INIT_TABLE: ${{ secrets.FEISHU_BASE_AUTO_INIT_TABLE }}
+          GITHUB_TOKEN_FOR_SEARCH: ${{ secrets.SEARCH_GITHUB_TOKEN }}
+          GITHUB_ACTIONS: true
+        run: uv run python -m trendradar --sync-feishu-base
