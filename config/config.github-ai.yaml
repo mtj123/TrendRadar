@@ -1,0 +1,154 @@
+# GitHub AI / AI RSS focused preset for Feishu Base sync
+
+app:
+  timezone: "Asia/Shanghai"
+  show_version_update: false
+
+schedule:
+  enabled: false
+  preset: "morning_evening"
+
+platforms:
+  enabled: false
+  api_url: ""
+  sources: []
+
+rss:
+  enabled: true
+  freshness_filter:
+    enabled: true
+    max_age_days: 7
+  feeds:
+    - id: "github-blog"
+      name: "GitHub Blog"
+      url: "https://github.blog/feed/"
+
+    - id: "openai-news"
+      name: "OpenAI News"
+      url: "https://openai.com/news/rss.xml"
+
+    - id: "huggingface-blog"
+      name: "Hugging Face Blog"
+      url: "https://huggingface.co/blog/feed.xml"
+
+    - id: "hacker-news"
+      name: "Hacker News"
+      url: "https://hnrss.org/frontpage"
+
+report:
+  mode: "current"
+  display_mode: "keyword"
+  rank_threshold: 5
+  sort_by_position_first: false
+  max_news_per_keyword: 0
+
+filter:
+  method: "keyword"
+  priority_sort_enabled: true
+
+display:
+  region_order:
+    - rss
+    - new_items
+  regions:
+    hotlist: false
+    new_items: true
+    rss: true
+    standalone: false
+    ai_analysis: false
+  standalone:
+    platforms: []
+    rss_feeds: []
+    max_items: 20
+
+notification:
+  enabled: false
+  channels:
+    feishu:
+      webhook_url: ""
+
+storage:
+  backend: "local"
+  formats:
+    sqlite: true
+    txt: false
+    html: false
+  local:
+    data_dir: "output"
+    retention_days: 0
+  remote:
+    retention_days: 0
+    endpoint_url: ""
+    bucket_name: ""
+    access_key_id: ""
+    secret_access_key: ""
+    region: ""
+  pull:
+    enabled: false
+    days: 7
+
+integrations:
+  feishu_base:
+    enabled: false
+    app_id: ""
+    app_secret: ""
+    app_token: ""
+    main_table_id: ""
+    main_table_name: "AI行业动态表"
+    auto_init_table: true
+    open_base: "https://open.feishu.cn"
+  github_repo_search:
+    enabled: true
+    token: ""
+    queries:
+      - "topic:llm pushed:>={days_ago}"
+      - "topic:agent pushed:>={days_ago}"
+      - "topic:mcp pushed:>={days_ago}"
+      - "\"model context protocol\" pushed:>={days_ago}"
+      - "agentic in:name,description pushed:>={days_ago}"
+      - "llm in:name,description pushed:>={days_ago}"
+    days: 7
+    per_query: 20
+    sort: "updated"
+    order: "desc"
+    api_base: "https://api.github.com"
+    min_score: 26
+
+ai:
+  model: ""
+  api_key: ""
+  api_base: ""
+  timeout: 120
+  temperature: 1.0
+  max_tokens: 5000
+  num_retries: 2
+  fallback_models: []
+  extra_params: {}
+
+ai_analysis:
+  enabled: false
+  language: "Chinese"
+  prompt_file: "ai_analysis_prompt.txt"
+  mode: "follow_report"
+  max_news_for_analysis: 50
+  include_rss: true
+  include_rank_timeline: false
+  include_standalone: false
+
+ai_translation:
+  enabled: false
+  language: "English"
+  prompt_file: "ai_translation_prompt.txt"
+  scope:
+    hotlist: false
+    rss: false
+    standalone: false
+
+ai_filter:
+  batch_size: 200
+  batch_interval: 2
+  min_score: 0.7
+  reclassify_threshold: 0.6
+  prompt_file: "prompt.txt"
+  extract_prompt_file: "extract_prompt.txt"
+  update_tags_prompt_file: "update_tags_prompt.txt"

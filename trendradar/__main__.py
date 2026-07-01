@@ -21,7 +21,18 @@ from trendradar.storage import convert_crawl_results_to_news_data
 from trendradar.utils.time import DEFAULT_TIMEZONE, is_within_days, calculate_days_old
 from trendradar.ai import AIAnalyzer, AIAnalysisResult
 from trendradar.core.scheduler import ResolvedSchedule
-from trendradar.commands import check_all_versions, run_doctor, run_test_notification, handle_status_commands
+from trendradar.commands import (
+    check_all_versions,
+    run_doctor,
+    run_feishu_base_check,
+    run_feishu_base_export,
+    run_test_notification,
+    handle_status_commands,
+    run_feishu_base_init,
+    run_feishu_base_preview,
+    run_feishu_base_sync,
+    try_auto_sync_feishu_base,
+)
 from trendradar.commands.version import _fetch_remote_version, _parse_version
 
 
@@ -1620,6 +1631,9 @@ class NewsAnalyzer:
             # 抓取 RSS 数据（如果启用），返回统计条目、新增条目和原始条目
             rss_items, rss_new_items, raw_rss_items, rss_new_urls = self._crawl_rss_data()
 
+            # 自动同步飞书多维表格（不影响原有推送链路）
+            try_auto_sync_feishu_base(self.ctx.config, storage_manager=self.storage_manager)
+
             # 执行模式策略，传递 RSS 数据用于合并推送
             self._execute_mode_strategy(
                 mode_strategy, results, id_to_name, failed_ids,
@@ -1647,17 +1661,33 @@ def main():
 诊断命令:
   --doctor               运行环境与配置体检
   --test-notification    发送测试通知到已配置渠道
+飞书 Base:
+  --check-feishu-base    检查飞书多维表格配置是否完整
+  --preview-feishu-base  预览将要同步到飞书多维表格的数据
+  --export-feishu-base-preview 导出将要同步到飞书多维表格的 JSON/CSV 预览
+  --feishu-base-init     初始化飞书多维表格主表与字段
+  --sync-feishu-base     将最新抓取结果同步到飞书多维表格
 
 示例:
   python -m trendradar                    # 正常运行
   python -m trendradar --show-schedule    # 查看当前调度状态
   python -m trendradar --doctor           # 运行一键体检
   python -m trendradar --test-notification # 测试通知渠道连通性
+  python -m trendradar --check-feishu-base # 检查飞书 Base 配置
+  python -m trendradar --preview-feishu-base # 预览同步数据
+  python -m trendradar --export-feishu-base-preview # 导出同步预览
+  python -m trendradar --feishu-base-init # 初始化飞书 Base
+  python -m trendradar --sync-feishu-base # 手动同步最新数据
 """
     )
     parser.add_argument("--show-schedule", action="store_true", help="显示当前调度状态")
     parser.add_argument("--doctor", action="store_true", help="运行环境与配置体检")
     parser.add_argument("--test-notification", action="store_true", help="发送测试通知到已配置渠道")
+    parser.add_argument("--check-feishu-base", action="store_true", help="检查飞书多维表格配置是否完整")
+    parser.add_argument("--preview-feishu-base", action="store_true", help="预览将要同步到飞书多维表格的数据")
+    parser.add_argument("--export-feishu-base-preview", action="store_true", help="导出将要同步到飞书多维表格的 JSON/CSV 预览")
+    parser.add_argument("--feishu-base-init", action="store_true", help="初始化飞书多维表格主表与字段")
+    parser.add_argument("--sync-feishu-base", action="store_true", help="同步最新数据到飞书多维表格")
 
     args = parser.parse_args()
 
@@ -1677,6 +1707,36 @@ def main():
 
         if args.test_notification:
             ok = run_test_notification(config)
+            if not ok:
+                raise SystemExit(1)
+            return
+
+        if args.check_feishu_base:
+            ok = run_feishu_base_check(config)
+            if not ok:
+                raise SystemExit(1)
+            return
+
+        if args.preview_feishu_base:
+            ok = run_feishu_base_preview(config)
+            if not ok:
+                raise SystemExit(1)
+            return
+
+        if args.export_feishu_base_preview:
+            ok = run_feishu_base_export(config)
+            if not ok:
+                raise SystemExit(1)
+            return
+
+        if args.feishu_base_init:
+            ok = run_feishu_base_init(config)
+            if not ok:
+                raise SystemExit(1)
+            return
+
+        if args.sync_feishu_base:
+            ok = run_feishu_base_sync(config)
             if not ok:
                 raise SystemExit(1)
             return

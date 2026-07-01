@@ -45,6 +45,17 @@ def _get_env_int_or_none(key: str) -> Optional[int]:
         return None
 
 
+def _get_env_float_or_none(key: str) -> Optional[float]:
+    """从环境变量获取浮点值，未设置时返回 None"""
+    value = os.environ.get(key, "").strip()
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 def _get_env_str(key: str, default: str = "") -> str:
     """从环境变量获取字符串值"""
     return os.environ.get(key, "").strip() or default
@@ -398,6 +409,52 @@ def _load_storage_config(config_data: Dict) -> Dict:
     }
 
 
+def _load_feishu_base_config(config_data: Dict) -> Dict:
+    """加载飞书多维表格同步配置"""
+    integrations = config_data.get("integrations", {})
+    feishu_base = integrations.get("feishu_base", {})
+
+    enabled_env = _get_env_bool("FEISHU_BASE_ENABLED")
+    auto_init_env = _get_env_bool("FEISHU_BASE_AUTO_INIT_TABLE")
+
+    return {
+        "ENABLED": enabled_env if enabled_env is not None else feishu_base.get("enabled", False),
+        "APP_ID": _get_env_str("FEISHU_BASE_APP_ID") or feishu_base.get("app_id", ""),
+        "APP_SECRET": _get_env_str("FEISHU_BASE_APP_SECRET") or feishu_base.get("app_secret", ""),
+        "APP_TOKEN": _get_env_str("FEISHU_BASE_APP_TOKEN") or feishu_base.get("app_token", ""),
+        "MAIN_TABLE_ID": _get_env_str("FEISHU_BASE_MAIN_TABLE_ID") or feishu_base.get("main_table_id", ""),
+        "MAIN_TABLE_NAME": _get_env_str("FEISHU_BASE_MAIN_TABLE_NAME") or feishu_base.get("main_table_name", "AI行业动态表"),
+        "AUTO_INIT_TABLE": auto_init_env if auto_init_env is not None else feishu_base.get("auto_init_table", True),
+        "OPEN_BASE": _get_env_str("FEISHU_OPEN_BASE") or feishu_base.get("open_base", "https://open.feishu.cn"),
+    }
+
+
+def _load_github_repo_search_config(config_data: Dict) -> Dict:
+    """加载 GitHub 仓库搜索配置"""
+    integrations = config_data.get("integrations", {})
+    github_repo = integrations.get("github_repo_search", {})
+
+    enabled_env = _get_env_bool("GITHUB_REPO_SEARCH_ENABLED")
+    queries_env = _get_env_str("GITHUB_REPO_SEARCH_QUERIES")
+    min_score_env = _get_env_float_or_none("GITHUB_REPO_SEARCH_MIN_SCORE")
+
+    queries = github_repo.get("queries", [])
+    if queries_env:
+        queries = [item.strip() for item in queries_env.split(";") if item.strip()]
+
+    return {
+        "ENABLED": enabled_env if enabled_env is not None else github_repo.get("enabled", False),
+        "TOKEN": _get_env_str("GITHUB_TOKEN_FOR_SEARCH") or github_repo.get("token", ""),
+        "QUERIES": queries,
+        "DAYS": _get_env_int("GITHUB_REPO_SEARCH_DAYS") or github_repo.get("days", 7),
+        "PER_QUERY": _get_env_int("GITHUB_REPO_SEARCH_PER_QUERY") or github_repo.get("per_query", 20),
+        "SORT": _get_env_str("GITHUB_REPO_SEARCH_SORT") or github_repo.get("sort", "updated"),
+        "ORDER": _get_env_str("GITHUB_REPO_SEARCH_ORDER") or github_repo.get("order", "desc"),
+        "API_BASE": _get_env_str("GITHUB_REPO_SEARCH_API_BASE") or github_repo.get("api_base", "https://api.github.com"),
+        "MIN_SCORE": min_score_env if min_score_env is not None else github_repo.get("min_score", 18),
+    }
+
+
 def _load_webhook_config(config_data: Dict) -> Dict:
     """加载 Webhook 配置"""
     notification = config_data.get("notification", {})
@@ -602,6 +659,12 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
     # 存储配置
     config["STORAGE"] = _load_storage_config(config_data)
+
+    # 飞书 Base 同步配置
+    config["FEISHU_BASE"] = _load_feishu_base_config(config_data)
+
+    # GitHub repo 搜索配置
+    config["GITHUB_REPO_SEARCH"] = _load_github_repo_search_config(config_data)
 
     # Webhook 配置
     config.update(_load_webhook_config(config_data))

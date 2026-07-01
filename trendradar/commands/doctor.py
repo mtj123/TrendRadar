@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 from trendradar import __version__
 from trendradar.context import AppContext
 from trendradar.core import load_config, parse_multi_account_config, validate_paired_configs
+from trendradar.feishu_base import FeishuBaseConfig
 
 
 def _record_result(results: List[Tuple[str, str, str]], status: str, item: str, detail: str) -> None:
@@ -197,6 +198,9 @@ def _check_with_config(results: List[Tuple[str, str, str]], config: Dict) -> Non
     except Exception as e:
         _record_result(results, "fail", "输出目录", f"不可写: {e}")
 
+    # 9) 飞书 Base 配置检查
+    _check_feishu_base(results, config)
+
 
 def _check_notification_channels(results: List[Tuple[str, str, str]], config: Dict) -> None:
     channel_details = []
@@ -261,3 +265,35 @@ def _check_notification_channels(results: List[Tuple[str, str, str]], config: Di
         _record_result(results, "pass", "通知配置", f"可用渠道: {', '.join(channel_details)}")
     else:
         _record_result(results, "warn", "通知配置", "未配置任何通知渠道")
+
+
+def _check_feishu_base(results: List[Tuple[str, str, str]], config: Dict) -> None:
+    cfg = FeishuBaseConfig.from_config(config)
+
+    if not cfg.enabled:
+        _record_result(results, "warn", "飞书Base配置", "未启用飞书 Base 自动同步")
+        return
+
+    missing = []
+    if not cfg.app_id:
+        missing.append("APP_ID")
+    if not cfg.app_secret:
+        missing.append("APP_SECRET")
+    if not cfg.app_token:
+        missing.append("APP_TOKEN")
+
+    if missing:
+        _record_result(
+            results,
+            "fail",
+            "飞书Base配置",
+            f"已启用但缺少: {', '.join(missing)}",
+        )
+        return
+
+    detail = f"主表名: {cfg.main_table_name}"
+    if cfg.main_table_id:
+        detail += f"，已配置 table_id"
+    else:
+        detail += f"，未配置 table_id（将按表名查找）"
+    _record_result(results, "pass", "飞书Base配置", detail)
